@@ -1,0 +1,28 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Phase 2: only the users collection is open, and only to its owner.
+    // Everything else is denied until later phases add (and test) its rules.
+    match /users/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+
+      allow create: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['name', 'email', 'createdAt']);
+
+      allow update: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['name', 'country', 'city', 'accountType', 'activeMode', 'businessName'])
+        && (!('accountType' in request.resource.data)
+             || request.resource.data.accountType in ['buyer', 'supplier', 'both'])
+        && (!('activeMode' in request.resource.data)
+             || request.resource.data.activeMode in ['buyer', 'supplier']);
+
+      allow delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
